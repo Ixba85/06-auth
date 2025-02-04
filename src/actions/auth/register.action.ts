@@ -1,4 +1,4 @@
-import { defineAction,  } from 'astro:actions';
+import { defineAction } from 'astro:actions';
 import { z } from 'astro:schema';
 
 import {
@@ -18,10 +18,10 @@ export const registerUser = defineAction({
     remember_me: z.boolean().optional(),
   }),
   handler: async ({ name, email, password, remember_me }, { cookies }) => {
-    // Cookies
+    // Handle cookies
     if (remember_me) {
       cookies.set('email', email, {
-        expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // 1 año,
+        expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // 1 year
         path: '/',
       });
     } else {
@@ -30,26 +30,31 @@ export const registerUser = defineAction({
       });
     }
 
-    // Creación de usuario
-
     try {
-      const user = await createUserWithEmailAndPassword(
+      // Create the user
+      const userCredential = await createUserWithEmailAndPassword(
         firebase.auth,
         email,
         password
       );
+      const firebaseUser = userCredential.user;
 
-      // Actualizar el nombre (displayName)
-      updateProfile(firebase.auth.currentUser!, {
+      // Update the display name
+      await updateProfile(firebaseUser, {
         displayName: name,
       });
 
-      // Verificar el correo electrónico
-      await sendEmailVerification(firebase.auth.currentUser!, {
+      // Send email verification
+      await sendEmailVerification(firebaseUser, {
         url: `${import.meta.env.WEBSITE_URL}/protected?emailVerified=true`,
       });
 
-      return user;
+      // Return a plain object with only the necessary data
+      return {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+      };
     } catch (error) {
       const firebaseError = error as AuthError;
 
